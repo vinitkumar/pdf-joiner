@@ -84,7 +84,7 @@ make clean
 
 ## License
 
-MIT
+MIT. See the `LICENSE` file for more details.
 
 ## Author
 
