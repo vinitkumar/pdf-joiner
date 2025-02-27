@@ -84,8 +84,8 @@ make clean
 
 ## License
 
-MIT
+MIT. See the `LICENSE` file for more details.
 
 ## Author
 
-Vinit Kumar 
+Vinit Kumar  (mail@vinitkumar.me)
