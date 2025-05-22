@@ -44,10 +44,10 @@ jobs:
     name: Build
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: '1.24.3'
         cache: true
@@ -56,7 +56,8 @@ jobs:
       run: go build -v -o pdf-joiner
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
+
       with:
         name: pdf-joiner
         path: pdf-joiner
@@ -67,10 +68,10 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: '1.24.3'
 
