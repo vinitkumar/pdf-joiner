@@ -1,0 +1,28 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+pdf-joiner
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Dependency directories (remove the comment below if you'll be checking in your vendor directory)
+# vendor/
+
+# Go workspace file
+go.work
+
+# macOS specific files
+.DS_Store
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo 

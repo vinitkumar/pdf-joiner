@@ -1,90 +1,62 @@
 # PDF Joiner
 
-A simple command-line utility for joining multiple PDF files into a single PDF document on macOS.
+[![Go CI](https://github.com/vinitkumar/pdf-joiner/actions/workflows/ci.yml/badge.svg)](https://github.com/vinitkumar/pdf-joiner/actions/workflows/ci.yml)
+
+A simple command-line tool to join multiple PDF files into a single PDF document on macOS.
 
 ## Requirements
 
-- macOS (This tool uses the built-in macOS PDF joining utility)
-- Go 1.18 or later (for building from source)
+- macOS (the tool uses the built-in macOS PDF joining utility)
+- Go 1.20 or higher (for development)
 
 ## Installation
 
 ### From Source
 
-1. Clone this repository:
-   ```
-   git clone https://github.com/vinitkumar/pdf-joiner.git
-   cd pdf-joiner
-   ```
+```bash
+git clone https://github.com/vinitkumar/pdf-joiner.git
+cd pdf-joiner
+go build -o pdf-joiner
+```
 
-2. Build the binary:
-   ```
-   make build
-   ```
+### From Releases
 
-3. (Optional) Install the binary to your system:
-   ```
-   make install
-   ```
+Download the latest binary from the [Releases page](https://github.com/vinitkumar/pdf-joiner/releases).
 
 ## Usage
 
-```
-pdf-joiner [-o output.pdf] file1.pdf file2.pdf [file3.pdf ...]
+```bash
+# Join PDFs with default output filename (timestamp-based)
+./pdf-joiner file1.pdf file2.pdf file3.pdf
+
+# Join PDFs with a custom output filename
+./pdf-joiner -o output.pdf file1.pdf file2.pdf file3.pdf
 ```
 
-### Options
+## Features
 
-- `-o`: Specify the output file path. If not provided, the output will be saved as `joined-pdf-YYYY-MM-DD-HHMMSS.pdf` in the current directory.
-
-### Examples
-
-Join two PDF files:
-```
-pdf-joiner file1.pdf file2.pdf
-```
-
-Join multiple PDF files with a specific output path:
-```
-pdf-joiner -o merged.pdf file1.pdf file2.pdf file3.pdf
-```
-
-Join all PDF files in a directory:
-```
-pdf-joiner -o merged.pdf /path/to/directory/*.pdf
-```
-
-## How It Works
-
-This tool is a wrapper around the macOS built-in PDF joining utility located at:
-```
-/System/Library/Automator/Combine PDF Pages.action/Contents/MacOS/join
-```
+- Join multiple PDF files into a single document
+- Specify custom output path
+- Automatic output filename generation with timestamp
+- Verification of input files
 
 ## Development
 
-### Running Tests
+### Testing
 
-```
-make test
-```
-
-### Building for Different Architectures
-
-Build for both Intel and Apple Silicon Macs:
-```
-make build-universal-darwin
+```bash
+go test -v ./...
 ```
 
-### Cleaning Up
+### Building
 
-```
-make clean
+```bash
+go build -o pdf-joiner
 ```
 
 ## License
 
-MIT. See the `LICENSE` file for more details.
+MIT
 
 ## Author
 
