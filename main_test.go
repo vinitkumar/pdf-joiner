@@ -12,8 +12,14 @@ func TestFileExists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temporary file: %v", err)
 	}
-	defer os.Remove(tempFile.Name())
-	defer tempFile.Close()
+	defer func() {
+		if err := tempFile.Close(); err != nil {
+			t.Logf("Failed to close temporary file: %v", err)
+		}
+		if err := os.Remove(tempFile.Name()); err != nil {
+			t.Logf("Failed to remove temporary file: %v", err)
+		}
+	}()
 
 	// Test cases
 	tests := []struct {
@@ -52,25 +58,29 @@ func TestFileExists(t *testing.T) {
 func TestOutputPathGeneration(t *testing.T) {
 	// This is a mock test to demonstrate how we would test the output path generation
 	// In a real test, we would need to mock time.Now() or use dependency injection
-	
+
 	// Create a temporary directory for testing
 	tempDir, err := os.MkdirTemp("", "pdf-joiner-test")
 	if err != nil {
 		t.Fatalf("Failed to create temporary directory: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
-	
+	defer func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Logf("Failed to remove temporary directory: %v", err)
+		}
+	}()
+
 	// Test that we can create directories for output
 	testOutputPath := filepath.Join(tempDir, "subdir", "output.pdf")
 	outputDir := filepath.Dir(testOutputPath)
-	
+
 	err = os.MkdirAll(outputDir, 0755)
 	if err != nil {
 		t.Errorf("Failed to create output directory: %v", err)
 	}
-	
+
 	// Verify the directory was created
 	if _, err := os.Stat(outputDir); os.IsNotExist(err) {
 		t.Errorf("Output directory was not created: %v", err)
 	}
-} 
+}
