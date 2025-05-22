@@ -7,7 +7,7 @@ A simple command-line tool to join multiple PDF files into a single PDF document
 ## Requirements
 
 - macOS (the tool uses the built-in macOS PDF joining utility)
-- Go 1.20 or higher (for development)
+- Go 1.24 or higher (for development)
 
 ## Installation
 
