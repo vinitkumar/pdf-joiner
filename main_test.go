@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -83,4 +84,79 @@ func TestOutputPathGeneration(t *testing.T) {
 	if _, err := os.Stat(outputDir); os.IsNotExist(err) {
 		t.Errorf("Output directory was not created: %v", err)
 	}
+}
+
+func TestNewPDFJoiner(t *testing.T) {
+	joiner, err := NewPDFJoiner()
+
+	// The test should work on both macOS and Linux
+	switch runtime.GOOS {
+	case "darwin":
+		if err != nil && joiner == nil {
+			// It's OK if macOS joiner is not available in test environment
+			t.Logf("macOS PDF joiner not available in test environment: %v", err)
+			return
+		}
+		if joiner != nil && joiner.GetName() != "macOS built-in PDF joiner" {
+			t.Errorf("Expected macOS joiner, got: %s", joiner.GetName())
+		}
+	case "linux":
+		if err != nil && joiner == nil {
+			// It's OK if Linux tools are not available in test environment
+			t.Logf("Linux PDF tools not available in test environment: %v", err)
+			return
+		}
+		if joiner != nil {
+			expectedPrefixes := []string{"Linux pdfunite", "Linux gs", "Linux qpdf"}
+			found := false
+			for _, prefix := range expectedPrefixes {
+				if joiner.GetName() == prefix {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("Expected Linux joiner with one of %v, got: %s", expectedPrefixes, joiner.GetName())
+			}
+		}
+	default:
+		if err == nil {
+			t.Errorf("Expected error for unsupported OS %s, but got nil", runtime.GOOS)
+		}
+	}
+}
+
+func TestMacOSJoiner(t *testing.T) {
+	joiner := &MacOSJoiner{}
+
+	// Test GetName
+	if joiner.GetName() != "macOS built-in PDF joiner" {
+		t.Errorf("Expected 'macOS built-in PDF joiner', got: %s", joiner.GetName())
+	}
+
+	// Test IsAvailable - this may return false in test environment
+	available := joiner.IsAvailable()
+	t.Logf("macOS joiner available: %v", available)
+}
+
+func TestLinuxJoiner(t *testing.T) {
+	// Test creating a Linux joiner
+	joiner, err := NewLinuxJoiner()
+	if err != nil {
+		t.Logf("Linux PDF tools not available in test environment: %v", err)
+		return
+	}
+
+	// Test GetName
+	name := joiner.GetName()
+	if name == "" {
+		t.Error("Linux joiner name should not be empty")
+	}
+
+	// Test IsAvailable
+	if !joiner.IsAvailable() {
+		t.Error("Linux joiner should be available if it was created successfully")
+	}
+
+	t.Logf("Linux joiner: %s", name)
 }
