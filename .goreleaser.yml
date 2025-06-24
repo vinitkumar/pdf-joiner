@@ -32,7 +32,4 @@ snapshot:
 
 release:
   draft: false
-  prerelease: false
-
-dist:
-  name: pdf-joiner 
+  prerelease: false 
