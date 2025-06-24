@@ -46,7 +46,7 @@ jobs:
   release:
     name: Release
     needs: [test, build]
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
     runs-on: macos-latest
     permissions:
       contents: write
