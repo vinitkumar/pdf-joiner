@@ -92,7 +92,7 @@ func TestNewPDFJoiner(t *testing.T) {
 	// The test should work on both macOS and Linux
 	switch runtime.GOOS {
 	case "darwin":
-		if err != nil && joiner == nil {
+		if err != nil {
 			// It's OK if macOS joiner is not available in test environment
 			t.Logf("macOS PDF joiner not available in test environment: %v", err)
 			return
@@ -101,7 +101,7 @@ func TestNewPDFJoiner(t *testing.T) {
 			t.Errorf("Expected macOS joiner, got: %s", joiner.GetName())
 		}
 	case "linux":
-		if err != nil && joiner == nil {
+		if err != nil {
 			// It's OK if Linux tools are not available in test environment
 			t.Logf("Linux PDF tools not available in test environment: %v", err)
 			return
