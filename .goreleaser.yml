@@ -14,13 +14,10 @@ builds:
     binary: pdf-joiner
     ldflags:
       - -s -w
-    ignore:
-      - goos: linux
-        goarch: arm64
 
 archives:
   - format: tar.gz
-    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "pdf-joiner-{{ .Os }}-{{ .Arch }}"
     files:
       - "README.md"
 
