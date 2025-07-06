@@ -3,49 +3,34 @@ before:
     - go mod tidy
 
 builds:
-  - id: linux-amd64
+  - id: pdf-joiner
+    main: .
+    binary: pdf-joiner
     env:
       - CGO_ENABLED=0
     goos:
       - linux
-    goarch:
-      - amd64
-    binary: "pdf-joiner-linux-amd64"
-    ldflags:
-      - -s -w
-
-  - id: linux-arm64
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-    goarch:
-      - arm64
-    binary: "pdf-joiner-linux-arm64"
-    ldflags:
-      - -s -w
-
-  - id: darwin-amd64
-    env:
-      - CGO_ENABLED=0
-    goos:
       - darwin
     goarch:
       - amd64
-    binary: "pdf-joiner-darwin-amd64"
-    ldflags:
-      - -s -w
-
-  - id: darwin-arm64
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - darwin
-    goarch:
       - arm64
-    binary: "pdf-joiner-darwin-arm64"
     ldflags:
       - -s -w
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    no_unique_dist_dir: false
+    overrides:
+      - goos: linux
+        goarch: amd64
+        binary: pdf-joiner-linux-amd64
+      - goos: linux
+        goarch: arm64
+        binary: pdf-joiner-linux-arm64
+      - goos: darwin
+        goarch: amd64
+        binary: pdf-joiner-darwin-amd64
+      - goos: darwin
+        goarch: arm64
+        binary: pdf-joiner-darwin-arm64
 
 archives:
   - format: tar.gz
@@ -61,4 +46,4 @@ snapshot:
 
 release:
   draft: false
-  prerelease: false 
+  prerelease: false
