@@ -3,15 +3,47 @@ before:
     - go mod tidy
 
 builds:
-  - env:
+  - id: linux-amd64
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
+    goarch:
+      - amd64
+    binary: "pdf-joiner-linux-amd64"
+    ldflags:
+      - -s -w
+
+  - id: linux-arm64
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - arm64
+    binary: "pdf-joiner-linux-arm64"
+    ldflags:
+      - -s -w
+
+  - id: darwin-amd64
+    env:
+      - CGO_ENABLED=0
+    goos:
       - darwin
     goarch:
       - amd64
+    binary: "pdf-joiner-darwin-amd64"
+    ldflags:
+      - -s -w
+
+  - id: darwin-arm64
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
       - arm64
-    binary: "pdf-joiner-{{ .Os }}-{{ .Arch }}"
+    binary: "pdf-joiner-darwin-arm64"
     ldflags:
       - -s -w
 
