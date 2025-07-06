@@ -91,11 +91,109 @@ func (l *LinuxJoiner) GetName() string {
 	return fmt.Sprintf("Linux %s", l.backend)
 }
 
+// detectLinuxDistribution detects the Linux distribution
+func detectLinuxDistribution() string {
+	// Check for common distribution files
+	distFiles := map[string]string{
+		"/etc/os-release":     "",
+		"/etc/debian_version": "debian",
+		"/etc/redhat-release": "redhat",
+		"/etc/fedora-release": "fedora",
+		"/etc/arch-release":   "arch",
+		"/etc/SuSE-release":   "suse",
+	}
+
+	for file, dist := range distFiles {
+		if fileExists(file) {
+			if dist != "" {
+				return dist
+			}
+			// Read os-release file for more detailed info
+			if file == "/etc/os-release" {
+				content, err := os.ReadFile(file)
+				if err == nil {
+					contentStr := strings.ToLower(string(content))
+					if strings.Contains(contentStr, "ubuntu") || strings.Contains(contentStr, "debian") {
+						return "debian"
+					} else if strings.Contains(contentStr, "fedora") {
+						return "fedora"
+					} else if strings.Contains(contentStr, "centos") || strings.Contains(contentStr, "rhel") {
+						return "redhat"
+					} else if strings.Contains(contentStr, "arch") {
+						return "arch"
+					}
+				}
+			}
+		}
+	}
+
+	// Default to debian if we can't detect
+	return "debian"
+}
+
+// installPDFTools installs PDF tools based on the Linux distribution
+func installPDFTools(distribution string) error {
+	var cmd *exec.Cmd
+
+	switch distribution {
+	case "debian", "ubuntu":
+		fmt.Println("Installing PDF tools for Debian/Ubuntu...")
+		cmd = exec.Command("sudo", "apt-get", "update")
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to update package list: %v", err)
+		}
+		cmd = exec.Command("sudo", "apt-get", "install", "-y", "poppler-utils", "ghostscript")
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to install PDF tools: %v", err)
+		}
+	case "fedora":
+		fmt.Println("Installing PDF tools for Fedora...")
+		cmd = exec.Command("sudo", "dnf", "install", "-y", "poppler-utils", "ghostscript")
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to install PDF tools: %v", err)
+		}
+	case "redhat", "centos":
+		fmt.Println("Installing PDF tools for RHEL/CentOS...")
+		cmd = exec.Command("sudo", "yum", "install", "-y", "poppler-utils", "ghostscript")
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to install PDF tools: %v", err)
+		}
+	case "arch":
+		fmt.Println("Installing PDF tools for Arch Linux...")
+		cmd = exec.Command("sudo", "pacman", "-S", "--noconfirm", "poppler", "ghostscript")
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to install PDF tools: %v", err)
+		}
+	default:
+		return fmt.Errorf("unsupported Linux distribution: %s", distribution)
+	}
+
+	fmt.Println("PDF tools installed successfully!")
+	return nil
+}
+
 // NewLinuxJoiner creates a new LinuxJoiner with the best available backend
 func NewLinuxJoiner() (*LinuxJoiner, error) {
 	// Priority order of backends to try
 	backends := []string{"pdfunite", "gs", "qpdf"}
 
+	for _, backend := range backends {
+		if _, err := exec.LookPath(backend); err == nil {
+			return &LinuxJoiner{backend: backend, command: backend}, nil
+		}
+	}
+
+	// If no backend is available, try to install them
+	fmt.Println("No PDF joining tools found. Attempting to install them...")
+
+	distribution := detectLinuxDistribution()
+	fmt.Printf("Detected Linux distribution: %s\n", distribution)
+
+	if err := installPDFTools(distribution); err != nil {
+		return nil, fmt.Errorf("failed to install PDF tools: %v", err)
+	}
+
+	// Try again after installation
 	for _, backend := range backends {
 		if _, err := exec.LookPath(backend); err == nil {
 			return &LinuxJoiner{backend: backend, command: backend}, nil
