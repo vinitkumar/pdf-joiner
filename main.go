@@ -48,12 +48,17 @@ func (m *MacOSJoiner) GetName() string {
 	return "macOS built-in PDF joiner"
 }
 
-// LinuxJoiner implements PDFJoiner for Linux
+// LinuxJoiner implements PDFJoiner for Linux systems.
+// It supports multiple backends for joining PDF files, such as pdfunite, ghostscript (gs), and qpdf.
+// The backend is selected based on availability, and installation is attempted if none are found.
 type LinuxJoiner struct {
 	backend string
 	command string
 }
 
+// Join merges multiple PDF files into a single output PDF using the selected backend.
+// Supported backends: pdfunite, gs (Ghostscript), qpdf.
+// Returns an error if the join operation fails or the backend is unsupported.
 func (l *LinuxJoiner) Join(inputFiles []string, outputPath string) error {
 	var cmd *exec.Cmd
 
@@ -82,16 +87,20 @@ func (l *LinuxJoiner) Join(inputFiles []string, outputPath string) error {
 	return nil
 }
 
+// IsAvailable checks if the selected backend is available in the system PATH.
 func (l *LinuxJoiner) IsAvailable() bool {
 	_, err := exec.LookPath(l.backend)
 	return err == nil
 }
 
+// GetName returns a human-readable name for the Linux PDF joiner backend.
 func (l *LinuxJoiner) GetName() string {
 	return fmt.Sprintf("Linux %s", l.backend)
 }
 
-// detectLinuxDistribution detects the Linux distribution
+// detectLinuxDistribution attempts to detect the current Linux distribution by checking for common release files.
+// Returns a string representing the distribution (e.g., "debian", "redhat", "arch", etc.).
+// Defaults to "debian" if detection fails.
 func detectLinuxDistribution() string {
 	// Check for common distribution files
 	distFiles := map[string]string{
@@ -131,7 +140,9 @@ func detectLinuxDistribution() string {
 	return "debian"
 }
 
-// installPDFTools installs PDF tools based on the Linux distribution
+// installPDFTools installs required PDF tools (poppler-utils, ghostscript) based on the detected Linux distribution.
+// Uses the appropriate package manager for each distribution.
+// Returns an error if installation fails or the distribution is unsupported.
 func installPDFTools(distribution string) error {
 	var cmd *exec.Cmd
 
@@ -172,7 +183,9 @@ func installPDFTools(distribution string) error {
 	return nil
 }
 
-// NewLinuxJoiner creates a new LinuxJoiner with the best available backend
+// NewLinuxJoiner creates a new LinuxJoiner instance using the best available PDF joining backend.
+// If no backend is found, it attempts to install the required tools and retries.
+// Returns an error if no suitable backend is available after installation attempts.
 func NewLinuxJoiner() (*LinuxJoiner, error) {
 	// Priority order of backends to try
 	backends := []string{"pdfunite", "gs", "qpdf"}
@@ -203,7 +216,8 @@ func NewLinuxJoiner() (*LinuxJoiner, error) {
 	return nil, fmt.Errorf("no suitable PDF joining tool found on Linux. Please install one of: %s", strings.Join(backends, ", "))
 }
 
-// NewPDFJoiner creates the appropriate PDFJoiner for the current OS
+// NewPDFJoiner creates the appropriate PDFJoiner implementation for the current operating system.
+// Supports macOS and Linux. Returns an error for unsupported OSes or if required utilities are missing.
 func NewPDFJoiner() (PDFJoiner, error) {
 	switch runtime.GOOS {
 	case "darwin":
