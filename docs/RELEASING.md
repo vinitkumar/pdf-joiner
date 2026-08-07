@@ -44,7 +44,7 @@ The local release script:
 2. Signs both macOS binaries with hardened runtime and a secure timestamp.
 3. Submits both signed executables to Apple in one notarization request.
 4. Waits for an `Accepted` result.
-5. Creates four release archives and SHA-256 checksums.
+5. Creates four release archives, the installer, and SHA-256 checksums.
 6. Verifies the macOS signatures and Gatekeeper assessment.
 
 Artifacts are written to `dist/release/VERSION`. Existing output is never overwritten.
@@ -68,7 +68,9 @@ codesign -dv --verbose=4 bin/darwin/arm64/pdf-joiner
 spctl --assess --type execute --verbose=4 bin/darwin/arm64/pdf-joiner
 ```
 
-Every archive contains an executable named simply `pdf-joiner`; platform and architecture appear only in the archive filename. The signature should identify `Developer ID Application: Vinit Kumar (RRVJ5HE22Y)`, include hardened runtime and a secure timestamp, and Gatekeeper should report a notarized Developer ID source.
+Every archive contains an executable named simply `pdf-joiner`; platform and architecture appear only in the archive filename. The signature should identify `Developer ID Application: Vinit Kumar (RRVJ5HE22Y)` and include hardened runtime and a secure timestamp. Apple must report `Accepted`, `Ready for distribution`, and no issues in `notarization.json` and `notarization-log.json`.
+
+`spctl` can report that a valid standalone command-line executable “does not seem to be an app.” That message describes the assessment context; it does not override an `Accepted` notary-service result. A future `.pkg` installer can provide the conventional stapled Gatekeeper experience.
 
 Apple publishes notarization tickets online for standalone executables. Tickets cannot be stapled directly to standalone executables or ZIP archives. For offline Gatekeeper validation, add a signed, notarized, and stapled `.pkg` or `.dmg` distribution.
 
@@ -79,7 +81,8 @@ After inspecting the artifacts, create the tag and release:
 ```bash
 git tag -a v1.3.0 -m "v1.3.0"
 git push origin v1.3.0
-gh release create v1.3.0 dist/release/1.3.0/*.tar.gz dist/release/1.3.0/checksums.txt \
+gh release create v1.3.0 dist/release/1.3.0/*.tar.gz \
+  dist/release/1.3.0/checksums.txt dist/release/1.3.0/install.sh \
   --generate-notes \
   --title "v1.3.0"
 ```
