@@ -1,162 +1,242 @@
 package main
 
 import (
+	"bytes"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
+	"reflect"
+	"strings"
 	"testing"
+	"time"
 )
 
+type fakeRunner struct {
+	name   string
+	args   []string
+	output []byte
+	err    error
+}
+
+func (f *fakeRunner) CombinedOutput(name string, args ...string) ([]byte, error) {
+	f.name = name
+	f.args = append([]string(nil), args...)
+	return f.output, f.err
+}
+
+type fakeJoiner struct {
+	inputs []string
+	output string
+	err    error
+}
+
+func (f *fakeJoiner) Join(inputs []string, output string) error {
+	f.inputs = append([]string(nil), inputs...)
+	f.output = output
+	return f.err
+}
+
+func (*fakeJoiner) Name() string { return "fake joiner" }
+
 func TestFileExists(t *testing.T) {
-	// Create a temporary file for testing
-	tempFile, err := os.CreateTemp("", "test-*.txt")
-	if err != nil {
-		t.Fatalf("Failed to create temporary file: %v", err)
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "input.pdf")
+	if err := os.WriteFile(filePath, []byte("pdf"), 0o600); err != nil {
+		t.Fatal(err)
 	}
-	defer func() {
-		if err := tempFile.Close(); err != nil {
-			t.Logf("Failed to close temporary file: %v", err)
-		}
-		if err := os.Remove(tempFile.Name()); err != nil {
-			t.Logf("Failed to remove temporary file: %v", err)
-		}
-	}()
 
-	// Test cases
 	tests := []struct {
-		name     string
-		path     string
-		expected bool
+		name string
+		path string
+		want bool
 	}{
-		{
-			name:     "Existing file",
-			path:     tempFile.Name(),
-			expected: true,
-		},
-		{
-			name:     "Non-existing file",
-			path:     "non-existing-file.pdf",
-			expected: false,
-		},
-		{
-			name:     "Directory",
-			path:     ".",
-			expected: false, // fileExists returns false for directories
-		},
+		{name: "file", path: filePath, want: true},
+		{name: "missing", path: filepath.Join(tempDir, "missing.pdf"), want: false},
+		{name: "directory", path: tempDir, want: false},
 	}
 
-	// Run test cases
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			result := fileExists(tc.path)
-			if result != tc.expected {
-				t.Errorf("fileExists(%s) = %v, expected %v", tc.path, result, tc.expected)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := fileExists(test.path); got != test.want {
+				t.Fatalf("fileExists(%q) = %v, want %v", test.path, got, test.want)
 			}
 		})
 	}
 }
 
-func TestOutputPathGeneration(t *testing.T) {
-	// This is a mock test to demonstrate how we would test the output path generation
-	// In a real test, we would need to mock time.Now() or use dependency injection
-
-	// Create a temporary directory for testing
-	tempDir, err := os.MkdirTemp("", "pdf-joiner-test")
-	if err != nil {
-		t.Fatalf("Failed to create temporary directory: %v", err)
-	}
-	defer func() {
-		if err := os.RemoveAll(tempDir); err != nil {
-			t.Logf("Failed to remove temporary directory: %v", err)
+func TestNewPDFJoinerForOS(t *testing.T) {
+	runner := &fakeRunner{}
+	lookPath := func(command string) (string, error) {
+		if command == "gs" {
+			return "/usr/local/bin/gs", nil
 		}
-	}()
-
-	// Test that we can create directories for output
-	testOutputPath := filepath.Join(tempDir, "subdir", "output.pdf")
-	outputDir := filepath.Dir(testOutputPath)
-
-	err = os.MkdirAll(outputDir, 0755)
-	if err != nil {
-		t.Errorf("Failed to create output directory: %v", err)
+		return "", errors.New("not found")
 	}
 
-	// Verify the directory was created
-	if _, err := os.Stat(outputDir); os.IsNotExist(err) {
-		t.Errorf("Output directory was not created: %v", err)
+	tests := []struct {
+		name      string
+		goos      string
+		exists    bool
+		wantName  string
+		wantError string
+	}{
+		{name: "macOS", goos: "darwin", exists: true, wantName: "macOS built-in PDF joiner"},
+		{name: "macOS tool missing", goos: "darwin", wantError: "utility not found"},
+		{name: "Linux", goos: "linux", wantName: "Linux gs"},
+		{name: "unsupported", goos: "windows", wantError: "unsupported operating system"},
 	}
-}
 
-func TestNewPDFJoiner(t *testing.T) {
-	joiner, err := NewPDFJoiner()
-
-	// The test should work on both macOS and Linux
-	switch runtime.GOOS {
-	case "darwin":
-		if err != nil {
-			// It's OK if macOS joiner is not available in test environment
-			t.Logf("macOS PDF joiner not available in test environment: %v", err)
-			return
-		}
-		if joiner != nil && joiner.GetName() != "macOS built-in PDF joiner" {
-			t.Errorf("Expected macOS joiner, got: %s", joiner.GetName())
-		}
-	case "linux":
-		if err != nil {
-			// It's OK if Linux tools are not available in test environment
-			t.Logf("Linux PDF tools not available in test environment: %v", err)
-			return
-		}
-		if joiner != nil {
-			expectedPrefixes := []string{"Linux pdfunite", "Linux gs", "Linux qpdf"}
-			found := false
-			for _, prefix := range expectedPrefixes {
-				if joiner.GetName() == prefix {
-					found = true
-					break
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			joiner, err := newPDFJoinerForOS(test.goos, func(string) bool { return test.exists }, lookPath, runner)
+			if test.wantError != "" {
+				if err == nil || !strings.Contains(err.Error(), test.wantError) {
+					t.Fatalf("newPDFJoinerForOS() error = %v, want containing %q", err, test.wantError)
 				}
+				return
 			}
-			if !found {
-				t.Errorf("Expected Linux joiner with one of %v, got: %s", expectedPrefixes, joiner.GetName())
+			if err != nil {
+				t.Fatal(err)
 			}
-		}
-	default:
-		if err == nil {
-			t.Errorf("Expected error for unsupported OS %s, but got nil", runtime.GOOS)
-		}
+			if got := joiner.Name(); got != test.wantName {
+				t.Fatalf("Name() = %q, want %q", got, test.wantName)
+			}
+		})
 	}
 }
 
-func TestMacOSJoiner(t *testing.T) {
-	joiner := &MacOSJoiner{}
-
-	// Test GetName
-	if joiner.GetName() != "macOS built-in PDF joiner" {
-		t.Errorf("Expected 'macOS built-in PDF joiner', got: %s", joiner.GetName())
+func TestLinuxJoinerCommandArguments(t *testing.T) {
+	tests := []struct {
+		backend string
+		want    []string
+	}{
+		{backend: "pdfunite", want: []string{"one.pdf", "two.pdf", "out.pdf"}},
+		{backend: "gs", want: []string{"-dBATCH", "-dNOPAUSE", "-q", "-sDEVICE=pdfwrite", "-sOutputFile=out.pdf", "one.pdf", "two.pdf"}},
+		{backend: "qpdf", want: []string{"--empty", "--pages", "one.pdf", "two.pdf", "--", "out.pdf"}},
 	}
 
-	// Test IsAvailable - this may return false in test environment
-	available := joiner.IsAvailable()
-	t.Logf("macOS joiner available: %v", available)
+	for _, test := range tests {
+		t.Run(test.backend, func(t *testing.T) {
+			runner := &fakeRunner{}
+			joiner := linuxJoiner{backend: test.backend, command: "/bin/" + test.backend, runner: runner}
+			inputs := []string{"one.pdf", "two.pdf"}
+			if err := joiner.Join(inputs, "out.pdf"); err != nil {
+				t.Fatal(err)
+			}
+			if runner.name != joiner.command {
+				t.Fatalf("command = %q, want %q", runner.name, joiner.command)
+			}
+			if !reflect.DeepEqual(runner.args, test.want) {
+				t.Fatalf("args = %#v, want %#v", runner.args, test.want)
+			}
+			if !reflect.DeepEqual(inputs, []string{"one.pdf", "two.pdf"}) {
+				t.Fatalf("Join mutated its input slice: %#v", inputs)
+			}
+		})
+	}
 }
 
-func TestLinuxJoiner(t *testing.T) {
-	// Test creating a Linux joiner
-	joiner, err := NewLinuxJoiner()
+func TestMacOSJoinerCommandArguments(t *testing.T) {
+	runner := &fakeRunner{}
+	joiner := macOSJoiner{runner: runner}
+	if err := joiner.Join([]string{"one.pdf", "two.pdf"}, "out.pdf"); err != nil {
+		t.Fatal(err)
+	}
+
+	want := []string{"-o", "out.pdf", "one.pdf", "two.pdf"}
+	if runner.name != macOSPDFJoinerPath || !reflect.DeepEqual(runner.args, want) {
+		t.Fatalf("command = %q %#v, want %q %#v", runner.name, runner.args, macOSPDFJoinerPath, want)
+	}
+}
+
+func TestJoinErrorWrapsCauseAndOutput(t *testing.T) {
+	cause := errors.New("exit status 1")
+	runner := &fakeRunner{output: []byte("bad PDF\n"), err: cause}
+	joiner := linuxJoiner{backend: "pdfunite", command: "pdfunite", runner: runner}
+
+	err := joiner.Join([]string{"one.pdf", "two.pdf"}, "out.pdf")
+	if !errors.Is(err, cause) {
+		t.Fatalf("Join() error %v does not wrap %v", err, cause)
+	}
+	if !strings.Contains(err.Error(), "bad PDF") {
+		t.Fatalf("Join() error %q does not contain command output", err)
+	}
+}
+
+func TestRun(t *testing.T) {
+	tempDir := t.TempDir()
+	first := filepath.Join(tempDir, "one.pdf")
+	second := filepath.Join(tempDir, "TWO.PDF")
+	for _, path := range []string{first, second} {
+		if err := os.WriteFile(path, []byte("pdf"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	joiner := &fakeJoiner{}
+	var stdout, stderr bytes.Buffer
+	now := func() time.Time { return time.Date(2026, time.August, 8, 12, 34, 56, 0, time.UTC) }
+	err := run([]string{first, second}, &stdout, &stderr, now, func() (pdfJoiner, error) { return joiner, nil })
 	if err != nil {
-		t.Logf("Linux PDF tools not available in test environment: %v", err)
-		return
+		t.Fatal(err)
+	}
+	if joiner.output != "joined-pdf-2026-08-08-123456.pdf" {
+		t.Fatalf("output = %q", joiner.output)
+	}
+	if !strings.Contains(stdout.String(), "Successfully joined 2 PDF files") {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
+func TestRunValidation(t *testing.T) {
+	tempDir := t.TempDir()
+	first := filepath.Join(tempDir, "one.pdf")
+	second := filepath.Join(tempDir, "two.pdf")
+	for _, path := range []string{first, second} {
+		if err := os.WriteFile(path, []byte("pdf"), 0o600); err != nil {
+			t.Fatal(err)
+		}
 	}
 
-	// Test GetName
-	name := joiner.GetName()
-	if name == "" {
-		t.Error("Linux joiner name should not be empty")
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "too few inputs", args: []string{first}, want: "at least two"},
+		{name: "missing input", args: []string{first, filepath.Join(tempDir, "missing.pdf")}, want: "inspect input file"},
+		{name: "directory input", args: []string{first, tempDir}, want: "not a regular file"},
+		{name: "output overwrites input", args: []string{"-o", first, first, second}, want: "must differ"},
 	}
 
-	// Test IsAvailable
-	if !joiner.IsAvailable() {
-		t.Error("Linux joiner should be available if it was created successfully")
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := run(test.args, &bytes.Buffer{}, &bytes.Buffer{}, time.Now, func() (pdfJoiner, error) {
+				return nil, fmt.Errorf("factory should not be called")
+			})
+			if err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("run() error = %v, want containing %q", err, test.want)
+			}
+		})
 	}
+}
 
-	t.Logf("Linux joiner: %s", name)
+func TestRunVersion(t *testing.T) {
+	oldVersion := version
+	version = "v1.2.3"
+	t.Cleanup(func() { version = oldVersion })
+
+	var stdout bytes.Buffer
+	if err := run([]string{"-version"}, &stdout, &bytes.Buffer{}, time.Now, func() (pdfJoiner, error) {
+		return nil, errors.New("factory should not be called")
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(stdout.String()); got != "v1.2.3" {
+		t.Fatalf("version output = %q", got)
+	}
 }
