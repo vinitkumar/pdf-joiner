@@ -1,4 +1,4 @@
-.PHONY: all build build-all build-darwin build-linux build-named build-universal-darwin check check-config clean deps fmt help install lint modernize release release-snapshot run test vet
+.PHONY: all build build-all build-darwin build-linux build-named build-universal-darwin check check-config clean deps fmt help install lint modernize release release-local release-snapshot run test vet
 
 BINARY_NAME := pdf-joiner
 VERSION ?= dev
@@ -68,7 +68,9 @@ build-named:
 	GOOS=darwin GOARCH=arm64 $(GO) build $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" -o builds/named/$(BINARY_NAME)-darwin-arm64 .
 
 release:
-	goreleaser release --clean --timeout 60m
+	./scripts/release-local.sh
+
+release-local: release
 
 release-snapshot:
 	goreleaser release --snapshot --clean
@@ -77,4 +79,4 @@ check-config:
 	goreleaser check
 
 help:
-	@echo "build, test, vet, fmt, modernize, lint, check, build-all, build-named, release-snapshot, release, clean"
+	@echo "build, test, vet, fmt, modernize, lint, check, build-all, build-named, release-snapshot, release-local, clean"

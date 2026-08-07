@@ -1,84 +1,87 @@
 # Releasing PDF Joiner
 
-Every tag matching `v*` starts the release workflow. It tests the repository, builds Linux and macOS archives, signs each macOS executable with Developer ID, submits it to Apple's notary service, waits for acceptance, and then publishes the GitHub release.
+Official releases are built, Developer ID-signed, and notarized locally on the maintainer's Mac. The certificate's private key remains in the login keychain and is never exported to CI.
 
-The workflow deliberately fails before building a release if any Apple credential is absent.
+## One-time setup
 
-## One-time Apple setup
+Install these certificates, including their private keys, in the login keychain:
 
-An active Apple Developer Program membership is required.
+- `Developer ID Application: Vinit Kumar (RRVJ5HE22Y)` signs the macOS executables.
+- `Developer ID Installer: Vinit Kumar (RRVJ5HE22Y)` is available if a `.pkg` installer is added later; the current archive release does not use it.
 
-### 1. Create the signing certificate
-
-In Apple Developer, open **Certificates, Identifiers & Profiles → Certificates**, create a **Developer ID Application** certificate, and install it in Keychain Access. The certificate must appear under **My Certificates** with its private key beneath it.
-
-Do not use Apple Development, Apple Distribution, or Mac App Distribution certificates.
-
-Confirm the identity locally:
+Verify the signing identity:
 
 ```bash
 security find-identity -v -p codesigning
 ```
 
-Export the certificate and private key from Keychain Access as a password-protected `.p12` file. Keep the file and its password private.
-
-### 2. Create the notarization key
-
-In App Store Connect, open **Users and Access → Integrations → App Store Connect API** and create a team API key. Record its **Issuer ID** and **Key ID**, then download the `.p8` private key. Apple allows the private key to be downloaded only once.
-
-### 3. Configure GitHub Actions secrets
-
-Base64-encode the two credential files on macOS:
+Store Apple notarization credentials in Keychain. The Apple ID form securely prompts for an app-specific password:
 
 ```bash
-base64 -i DeveloperIDApplication.p12 | pbcopy
-base64 -i AuthKey_KEYID.p8 | pbcopy
+xcrun notarytool store-credentials "pdf-joiner-notary" \
+  --apple-id "APPLE_ACCOUNT_EMAIL" \
+  --team-id RRVJ5HE22Y
 ```
 
-In **GitHub repository → Settings → Secrets and variables → Actions**, add:
+Verify the saved profile:
 
-| Secret | Value |
-| --- | --- |
-| `MACOS_SIGN_P12` | Base64 contents of the `.p12` file |
-| `MACOS_SIGN_PASSWORD` | Password used when exporting the `.p12` |
-| `MACOS_NOTARY_KEY` | Base64 contents of the `.p8` file |
-| `MACOS_NOTARY_KEY_ID` | App Store Connect API Key ID |
-| `MACOS_NOTARY_ISSUER_ID` | App Store Connect API Issuer ID |
+```bash
+xcrun notarytool history --keychain-profile "pdf-joiner-notary"
+```
 
-Base64 is an encoding, not encryption. Never commit these values, paste them into workflow files, or expose them in logs.
+## Build, sign, and notarize
 
-## Create a release
-
-First verify locally:
+Start from a clean commit and provide the release version:
 
 ```bash
 make check
-make release-snapshot
+VERSION=1.3.0 make release-local
 ```
 
-Then create and push a semantic-version tag:
+The local release script:
+
+1. Builds macOS and Linux binaries for amd64 and arm64.
+2. Signs both macOS binaries with hardened runtime and a secure timestamp.
+3. Submits both signed executables to Apple in one notarization request.
+4. Waits for an `Accepted` result.
+5. Creates four release archives and SHA-256 checksums.
+6. Verifies the macOS signatures and Gatekeeper assessment.
+
+Artifacts are written to `dist/release/VERSION`. Existing output is never overwritten.
+
+The defaults can be overridden when necessary:
 
 ```bash
-git tag -a v1.0.0 -m "v1.0.0"
-git push origin v1.0.0
+SIGNING_IDENTITY="Developer ID Application: Example (TEAMID)" \
+NOTARY_PROFILE="another-notary-profile" \
+OUTPUT_DIR="/absolute/output/path" \
+VERSION="1.3.0" \
+make release-local
 ```
 
-The release appears only after Apple accepts both Darwin binaries.
-
-## Verify a downloaded macOS release
-
-Extract the Darwin archive and run:
+## Inspect the release
 
 ```bash
-codesign --verify --strict --verbose=2 ./pdf-joiner
-codesign -dv --verbose=4 ./pdf-joiner
-spctl --assess --type execute --verbose=4 ./pdf-joiner
+cd dist/release/1.3.0
+shasum -a 256 -c checksums.txt
+codesign -dv --verbose=4 bin/darwin/arm64/pdf-joiner
+spctl --assess --type execute --verbose=4 bin/darwin/arm64/pdf-joiner
 ```
 
-The signature details should contain `Developer ID Application`, the expected Team Identifier, the hardened-runtime flag, and a secure timestamp. `spctl` should report that the executable is accepted and notarized.
+Every archive contains an executable named simply `pdf-joiner`; platform and architecture appear only in the archive filename. The signature should identify `Developer ID Application: Vinit Kumar (RRVJ5HE22Y)`, include hardened runtime and a secure timestamp, and Gatekeeper should report a notarized Developer ID source.
 
-Apple publishes the notarization ticket online for a standalone executable. Tickets cannot be stapled directly to a standalone executable or ZIP archive. If offline Gatekeeper validation becomes a requirement, add a signed, notarized, and stapled `.pkg` or `.dmg` distribution.
+Apple publishes notarization tickets online for standalone executables. Tickets cannot be stapled directly to standalone executables or ZIP archives. For offline Gatekeeper validation, add a signed, notarized, and stapled `.pkg` or `.dmg` distribution.
 
-## Credential rotation
+## Publish to GitHub
 
-If a certificate or API key is lost or exposed, revoke it in Apple Developer or App Store Connect immediately, create a replacement, and update the corresponding GitHub secrets. Existing releases should never be re-signed in place; publish a new version instead.
+After inspecting the artifacts, create the tag and release:
+
+```bash
+git tag -a v1.3.0 -m "v1.3.0"
+git push origin v1.3.0
+gh release create v1.3.0 dist/release/1.3.0/*.tar.gz dist/release/1.3.0/checksums.txt \
+  --generate-notes \
+  --title "v1.3.0"
+```
+
+Never publish if the local release script fails or the notarization result is anything other than `Accepted`.
