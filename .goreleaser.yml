@@ -1,3 +1,5 @@
+version: 2
+
 before:
   hooks:
     - go mod tidy
@@ -9,41 +11,54 @@ builds:
     env:
       - CGO_ENABLED=0
     goos:
-      - linux
       - darwin
+      - linux
     goarch:
       - amd64
       - arm64
+    flags:
+      - -trimpath
     ldflags:
-      - -s -w
+      - -s -w -X main.version={{ .Version }}
     mod_timestamp: "{{ .CommitTimestamp }}"
-    no_unique_dist_dir: false
-    overrides:
-      - goos: linux
-        goarch: amd64
-        binary: pdf-joiner-linux-amd64
-      - goos: linux
-        goarch: arm64
-        binary: pdf-joiner-linux-arm64
-      - goos: darwin
-        goarch: amd64
-        binary: pdf-joiner-darwin-amd64
-      - goos: darwin
-        goarch: arm64
-        binary: pdf-joiner-darwin-arm64
+
+notarize:
+  macos:
+    - enabled: '{{ isEnvSet "MACOS_SIGN_P12" }}'
+      ids:
+        - pdf-joiner
+      sign:
+        certificate: "{{ .Env.MACOS_SIGN_P12 }}"
+        password: "{{ .Env.MACOS_SIGN_PASSWORD }}"
+      notarize:
+        issuer_id: "{{ .Env.MACOS_NOTARY_ISSUER_ID }}"
+        key_id: "{{ .Env.MACOS_NOTARY_KEY_ID }}"
+        key: "{{ .Env.MACOS_NOTARY_KEY }}"
+        wait: true
+        timeout: 20m
 
 archives:
-  - format: tar.gz
-    name_template: "pdf-joiner-{{ .Os }}-{{ .Arch }}"
+  - id: release-archives
+    formats:
+      - tar.gz
+    name_template: "pdf-joiner_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
-      - "README.md"
+      - README.md
+      - LICENSE
 
 checksum:
-  name_template: 'checksums.txt'
+  name_template: checksums.txt
 
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
 
 release:
   draft: false
-  prerelease: false
+  prerelease: auto

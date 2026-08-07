@@ -1,110 +1,76 @@
 # PDF Joiner
 
 [![Go CI](https://github.com/vinitkumar/pdf-joiner/actions/workflows/ci.yml/badge.svg)](https://github.com/vinitkumar/pdf-joiner/actions/workflows/ci.yml)
+[![golangci-lint](https://github.com/vinitkumar/pdf-joiner/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/vinitkumar/pdf-joiner/actions/workflows/golangci-lint.yml)
 
-A simple command-line tool to join multiple PDF files into a single PDF document on **macOS and Linux**.
-
-## Requirements
-
-### macOS
-- macOS (the tool uses the built-in macOS PDF joining utility)
-- Go 1.24 or higher (for development)
-
-### Linux
-- Linux distribution with one of the following PDF tools installed:
-  - **pdfunite** (from poppler-utils) - *Recommended, available on most distributions*
-  - **ghostscript** (gs) - *Widely available fallback*
-  - **qpdf** - *Alternative option*
-- Go 1.24 or higher (for development)
-
-### Installation of Linux PDF Tools
-
-**Ubuntu/Debian:**
-```bash
-sudo apt-get install poppler-utils  # for pdfunite
-# or
-sudo apt-get install ghostscript    # for gs
-# or
-sudo apt-get install qpdf           # for qpdf
-```
-
-**RHEL/CentOS/Fedora:**
-```bash
-sudo dnf install poppler-utils      # for pdfunite
-# or
-sudo dnf install ghostscript        # for gs
-# or
-sudo dnf install qpdf               # for qpdf
-```
-
-**Arch Linux:**
-```bash
-sudo pacman -S poppler              # for pdfunite
-# or
-sudo pacman -S ghostscript          # for gs
-# or
-sudo pacman -S qpdf                 # for qpdf
-```
+A small command-line tool that joins PDF files on macOS and Linux.
 
 ## Installation
 
-### From Source
+Download the archive for your operating system and architecture from the [GitHub Releases page](https://github.com/vinitkumar/pdf-joiner/releases). macOS release binaries are signed with a Developer ID certificate and notarized by Apple.
+
+To build from source, install Go 1.26.5 or newer and run:
 
 ```bash
-git clone https://github.com/vinitkumar/pdf-joiner.git
-cd pdf-joiner
-go build -o pdf-joiner
+go install github.com/vinitkumar/pdf-joiner@latest
 ```
 
-### From Releases
+## Platform requirements
 
-Download the latest binary from the [Releases page](https://github.com/vinitkumar/pdf-joiner/releases).
+On macOS, PDF Joiner uses the system PDF joining utility at:
+
+```text
+/System/Library/Automator/Combine PDF Pages.action/Contents/MacOS/join
+```
+
+On Linux, install at least one supported backend. PDF Joiner checks them in this order:
+
+1. `pdfunite` from Poppler, recommended
+2. `gs` from Ghostscript
+3. `qpdf`
+
+For example:
+
+```bash
+# Debian or Ubuntu
+sudo apt-get install poppler-utils
+
+# Fedora
+sudo dnf install poppler-utils
+
+# Arch Linux
+sudo pacman -S poppler
+```
+
+PDF Joiner never installs system packages or invokes `sudo` itself.
 
 ## Usage
 
 ```bash
-# Join PDFs with default output filename (timestamp-based)
-./pdf-joiner file1.pdf file2.pdf file3.pdf
+# Timestamped output filename
+pdf-joiner first.pdf second.pdf third.pdf
 
-# Join PDFs with a custom output filename
-./pdf-joiner -o output.pdf file1.pdf file2.pdf file3.pdf
+# Explicit output filename
+pdf-joiner -o combined.pdf first.pdf second.pdf
+
+# Print the installed version
+pdf-joiner -version
 ```
 
-## Features
-
-- **Cross-platform support**: Works on macOS and Linux
-- **Automatic tool detection**: Uses the best available PDF tool on each platform
-- **Multiple backends on Linux**: Supports pdfunite, ghostscript, and qpdf with intelligent fallback
-- Join multiple PDF files into a single document
-- Specify custom output path
-- Automatic output filename generation with timestamp
-- Verification of input files
-
-## How It Works
-
-The tool automatically detects your operating system and uses the appropriate PDF joining method:
-
-- **macOS**: Uses the built-in `/System/Library/Automator/Combine PDF Pages.action/Contents/MacOS/join` utility
-- **Linux**: Automatically detects and uses the best available tool in this priority order:
-  1. `pdfunite` (from poppler-utils) - Fastest and most reliable
-  2. `ghostscript` (`gs`) - Widely available, stable fallback
-  3. `qpdf` - Alternative option
-
-If none of the Linux tools are available, the program will provide clear instructions on which packages to install.
+The output path must be different from every input path.
 
 ## Development
 
-### Testing
-
 ```bash
-go test -v ./...
+make test              # race-enabled tests and coverage
+make vet               # Go static analysis
+make lint              # golangci-lint
+make modernize         # Go 1.26 safe modernizers
+make build             # local binary
+make release-snapshot  # local GoReleaser build without publishing
 ```
 
-### Building
-
-```bash
-go build -o pdf-joiner
-```
+Tagged releases are built with GoReleaser. Darwin binaries are Developer ID-signed and notarized before their archives are published. See [docs/RELEASING.md](docs/RELEASING.md) for the one-time Apple and GitHub setup.
 
 ## License
 
@@ -112,4 +78,4 @@ MIT
 
 ## Author
 
-Vinit Kumar  (mail@vinitkumar.me)
+Vinit Kumar (mail@vinitkumar.me)

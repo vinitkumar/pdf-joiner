@@ -5,6 +5,8 @@
 *.so
 *.dylib
 pdf-joiner
+builds/
+dist/
 
 # Test binary, built with `go test -c`
 *.test
@@ -25,4 +27,4 @@ go.work
 .idea/
 .vscode/
 *.swp
-*.swo 
+*.swo
