@@ -7,7 +7,20 @@ A small command-line tool that joins PDF files on macOS and Linux.
 
 ## Installation
 
-Download the archive for your operating system and architecture from the [GitHub Releases page](https://github.com/vinitkumar/pdf-joiner/releases). macOS release binaries are signed locally with a Developer ID certificate and notarized by Apple.
+Install the latest release without `sudo`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/vinitkumar/pdf-joiner/main/install.sh | sh
+```
+
+The installer detects macOS or Linux and amd64 or arm64, verifies the archive checksum, installs `pdf-joiner` in `~/.local/bin`, and configures your shell's `PATH`. To install a specific release or choose another directory:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/vinitkumar/pdf-joiner/main/install.sh | PDF_JOINER_VERSION=v1.3.0 sh
+PDF_JOINER_INSTALL_DIR=/custom/bin ./install.sh
+```
+
+You can also download an archive directly from the [GitHub Releases page](https://github.com/vinitkumar/pdf-joiner/releases). Every macOS release binary is signed locally with a Developer ID certificate and notarized by Apple.
 
 To build from source, install Go 1.26.5 or newer and run:
 
