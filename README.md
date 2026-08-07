@@ -7,7 +7,7 @@ A small command-line tool that joins PDF files on macOS and Linux.
 
 ## Installation
 
-Download the archive for your operating system and architecture from the [GitHub Releases page](https://github.com/vinitkumar/pdf-joiner/releases). macOS release binaries are signed with a Developer ID certificate and notarized by Apple.
+Download the archive for your operating system and architecture from the [GitHub Releases page](https://github.com/vinitkumar/pdf-joiner/releases). macOS release binaries are signed locally with a Developer ID certificate and notarized by Apple.
 
 To build from source, install Go 1.26.5 or newer and run:
 
@@ -68,9 +68,10 @@ make lint              # golangci-lint
 make modernize         # Go 1.26 safe modernizers
 make build             # local binary
 make release-snapshot  # local GoReleaser build without publishing
+make release-local     # sign, notarize, and package a release on macOS
 ```
 
-Tagged releases are built with GoReleaser. Darwin binaries are Developer ID-signed and notarized before their archives are published. See [docs/RELEASING.md](docs/RELEASING.md) for the one-time Apple and GitHub setup.
+Official releases are built on the maintainer's Mac. Darwin binaries are Developer ID-signed and notarized before their archives are uploaded. The private signing key never leaves the login keychain. See [docs/RELEASING.md](docs/RELEASING.md) for the release procedure.
 
 ## License
 
