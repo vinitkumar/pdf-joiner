@@ -3,10 +3,9 @@ package main
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -21,7 +20,7 @@ type fakeRunner struct {
 
 func (f *fakeRunner) CombinedOutput(name string, args ...string) ([]byte, error) {
 	f.name = name
-	f.args = append([]string(nil), args...)
+	f.args = slices.Clone(args)
 	return f.output, f.err
 }
 
@@ -32,7 +31,7 @@ type fakeJoiner struct {
 }
 
 func (f *fakeJoiner) Join(inputs []string, output string) error {
-	f.inputs = append([]string(nil), inputs...)
+	f.inputs = slices.Clone(inputs)
 	f.output = output
 	return f.err
 }
@@ -127,10 +126,10 @@ func TestLinuxJoinerCommandArguments(t *testing.T) {
 			if runner.name != joiner.command {
 				t.Fatalf("command = %q, want %q", runner.name, joiner.command)
 			}
-			if !reflect.DeepEqual(runner.args, test.want) {
+			if !slices.Equal(runner.args, test.want) {
 				t.Fatalf("args = %#v, want %#v", runner.args, test.want)
 			}
-			if !reflect.DeepEqual(inputs, []string{"one.pdf", "two.pdf"}) {
+			if !slices.Equal(inputs, []string{"one.pdf", "two.pdf"}) {
 				t.Fatalf("Join mutated its input slice: %#v", inputs)
 			}
 		})
@@ -145,7 +144,7 @@ func TestMacOSJoinerCommandArguments(t *testing.T) {
 	}
 
 	want := []string{"-o", "out.pdf", "one.pdf", "two.pdf"}
-	if runner.name != macOSPDFJoinerPath || !reflect.DeepEqual(runner.args, want) {
+	if runner.name != macOSPDFJoinerPath || !slices.Equal(runner.args, want) {
 		t.Fatalf("command = %q %#v, want %q %#v", runner.name, runner.args, macOSPDFJoinerPath, want)
 	}
 }
@@ -216,7 +215,7 @@ func TestRunValidation(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := run(test.args, &bytes.Buffer{}, &bytes.Buffer{}, time.Now, func() (pdfJoiner, error) {
-				return nil, fmt.Errorf("factory should not be called")
+				return nil, errors.New("factory should not be called")
 			})
 			if err == nil || !strings.Contains(err.Error(), test.want) {
 				t.Fatalf("run() error = %v, want containing %q", err, test.want)

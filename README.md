@@ -22,7 +22,7 @@ PDF_JOINER_INSTALL_DIR=/custom/bin ./install.sh
 
 You can also download an archive directly from the [GitHub Releases page](https://github.com/vinitkumar/pdf-joiner/releases). Every macOS release binary is signed locally with a Developer ID certificate and notarized by Apple.
 
-To build from source, install Go 1.26.5 or newer and run:
+To build from source, install Go 1.27.0 or newer and run:
 
 ```bash
 go install github.com/vinitkumar/pdf-joiner@latest
@@ -30,7 +30,7 @@ go install github.com/vinitkumar/pdf-joiner@latest
 
 ## Platform requirements
 
-On macOS, PDF Joiner uses the system PDF joining utility at:
+On macOS, PDF Joiner requires macOS 13 Ventura or later and uses the system PDF joining utility at:
 
 ```text
 /System/Library/Automator/Combine PDF Pages.action/Contents/MacOS/join
@@ -78,7 +78,7 @@ The output path must be different from every input path.
 make test              # race-enabled tests and coverage
 make vet               # Go static analysis
 make lint              # golangci-lint
-make modernize         # Go 1.26 safe modernizers
+make modernize         # Go 1.27 safe modernizers
 make build             # local binary
 make release-snapshot  # local GoReleaser build without publishing
 make release-local     # sign, notarize, and package a release on macOS
